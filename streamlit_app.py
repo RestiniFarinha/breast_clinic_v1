@@ -1,5 +1,5 @@
-%pip install gspread oauth2client gdown
-%pip show gspread
+pip install gspread oauth2client gdown
+pip show gspread
 
 import streamlit as st
 import pandas as pd
