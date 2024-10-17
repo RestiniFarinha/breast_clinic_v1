@@ -1,17 +1,43 @@
 import streamlit as st
 import pandas as pd
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
 from datetime import datetime
 
-# Constants
-EXCEL_URL = "https://raw.githubusercontent.com/RestiniFarinha/breast_clinic_v1/main/Breast_clinic.xlsx"
-LOCAL_EXCEL = "Breast_clinic.xlsx"  # Local filename to save data
+# Google Sheets configuration
+SHEET_ID = "1y-ZVShqCHRMKjdf8_MWChGmGy1iEUaGm"  # Extracted from your link
+SHEET_NAME = "Sheet1"  # Ensure this matches the actual name of your sheet
 
-# Load existing data from GitHub
-try:
-    st.session_state["patient_data"] = pd.read_excel(EXCEL_URL)
-except Exception as e:
-    st.error(f"Could not load Excel: {e}")
-    st.session_state["patient_data"] = pd.DataFrame()  # Initialize empty dataframe if failed
+# Setup Google Sheets API access
+def connect_to_gsheet():
+    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+    creds = ServiceAccountCredentials.from_json_keyfile_name("credentials.json", scope)
+    client = gspread.authorize(creds)
+    return client.open_by_key(SHEET_ID).worksheet(SHEET_NAME)
+
+# Load patient data from Google Sheets
+def load_data():
+    try:
+        worksheet = connect_to_gsheet()
+        data = pd.DataFrame(worksheet.get_all_records())
+        return data
+    except Exception as e:
+        st.error(f"Error loading data: {e}")
+        return pd.DataFrame()
+
+# Save patient data to Google Sheets
+def save_data(data):
+    try:
+        worksheet = connect_to_gsheet()
+        worksheet.clear()  # Clear existing data
+        worksheet.update([data.columns.values.tolist()] + data.values.tolist())
+        st.success("Data saved successfully!")
+    except Exception as e:
+        st.error(f"Error saving data: {e}")
+
+# Initialize session state
+if "patient_data" not in st.session_state:
+    st.session_state["patient_data"] = load_data()
 
 # Function to calculate months between two dates
 def calculate_months(start_date, end_date):
@@ -76,8 +102,7 @@ else:
 if st.button("Save Data"):
     # Check if patient already exists
     if mrn in st.session_state["patient_data"]["MRN"].values:
-        patient_data = st.session_state["patient_data"][st.session_state["patient_data"]["MRN"] == mrn]
-        followup_count = patient_data.shape[0] + 1
+        followup_count = st.session_state["patient_data"][st.session_state["patient_data"]["MRN"] == mrn].shape[0] + 1
         suffix = f"#{followup_count}"
     else:
         suffix = ""
@@ -106,15 +131,10 @@ if st.button("Save Data"):
         f"Time_to_Distant_Recurrence{suffix}": time_to_distant_recurrence,
     }
 
-    # Append new data to the DataFrame
+    # Append new data
     st.session_state["patient_data"] = pd.concat(
         [st.session_state["patient_data"], pd.DataFrame([new_data])]
     )
 
-    # Save to local Excel file
-    st.session_state["patient_data"].to_excel(LOCAL_EXCEL, index=False)
-    st.success("Data saved successfully!")
-
-# Display Data
-st.write("Current Patient Data:")
-st.dataframe(st.session_state["patient_data"])
+    # Save to Google Sheets
+    save_data(st.session_state["patient_data"])
