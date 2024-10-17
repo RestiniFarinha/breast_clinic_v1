@@ -1,122 +1,120 @@
 import streamlit as st
 import pandas as pd
-from datetime import datetime, date
-import os
+from datetime import datetime
 
-# Set filename for the Excel file stored in GitHub or locally
-EXCEL_FILE = "patient_data.xlsx"
+# Constants
+EXCEL_URL = "https://raw.githubusercontent.com/RestiniFarinha/breast_clinic_v1/main/Breast_clinic.xlsx"
+LOCAL_EXCEL = "Breast_clinic.xlsx"  # Local filename to save data
 
-# Utility function to calculate months between two dates
+# Load existing data from GitHub
+try:
+    st.session_state["patient_data"] = pd.read_excel(EXCEL_URL)
+except Exception as e:
+    st.error(f"Could not load Excel: {e}")
+    st.session_state["patient_data"] = pd.DataFrame()  # Initialize empty dataframe if failed
+
+# Function to calculate months between two dates
 def calculate_months(start_date, end_date):
     return (end_date.year - start_date.year) * 12 + (end_date.month - start_date.month)
 
-# Load existing data from Excel if it exists
-if os.path.exists(EXCEL_FILE):
-    st.session_state["patient_data"] = pd.read_excel(EXCEL_FILE)
+st.title("Breast Clinic Patient Management")
+
+# Input Section
+mrn = st.text_input("MRN (Medical Record Number)")
+dob = st.date_input("Date of Birth", value=datetime(1980, 1, 1))
+followup_date = st.date_input("Date of Follow-up", value=datetime.today())
+
+# Calculate Age Button
+if st.button("Calculate Age"):
+    age = (followup_date - dob).days // 365
+    st.write(f"Patient's Age: {age} years")
 else:
-    st.session_state["patient_data"] = pd.DataFrame()
+    age = None
 
-# Title
-st.title("Patient Follow-Up Database")
+last_radiotherapy_date = st.date_input("Date of Last Radiotherapy", value=datetime(2020, 1, 1))
 
-# Patient Information Input Form
-with st.form("patient_form"):
-    st.subheader("Patient Information")
+# Calculate Time Since Treatment Button
+if st.button("Calculate Time Since Radiotherapy"):
+    time_since_treatment = calculate_months(last_radiotherapy_date, followup_date)
+    st.write(f"Time Since Treatment: {time_since_treatment} months")
+else:
+    time_since_treatment = None
 
-    mrn = st.text_input("MRN (Medical Record Number)").strip()
+radiodermatitis = st.selectbox("Radiodermatitis", ["None", "I", "II", "III", "IV"])
+telangiectasia = st.selectbox("Telangiectasia", ["No", "Yes"])
+breast_pain = st.selectbox("Breast Pain", ["None", "I", "II", "III"])
+cosmetic_outcome = st.selectbox("Cosmetic Outcome", ["Excellent", "Good", "Poor"])
+breast_shrinkage = st.selectbox("Breast Shrinkage", ["No", "Yes"])
+surgery_needed = st.selectbox("Surgery Needed for Cosmetic Side Effects", ["No", "Yes"])
 
-    # Allow older dates for Date of Birth
-    dob = st.date_input("Date of Birth", min_value=date(1900, 1, 1))
-    age = (datetime.now().date() - dob).days // 365  # Calculate age in years
-    st.write(f"Age: {age} years")
+# Recurrence Fields
+local_recurrence = st.selectbox("Local Recurrence", ["No", "Yes"])
+if local_recurrence == "Yes":
+    local_recurrence_date = st.date_input("Date of Local Recurrence")
+    time_to_local_recurrence = calculate_months(last_radiotherapy_date, local_recurrence_date)
+else:
+    local_recurrence_date = None
+    time_to_local_recurrence = None
 
-    last_radiotherapy = st.date_input("Date of Last Radiotherapy", min_value=date(1900, 1, 1))
-    followup_date = st.date_input("Follow-up Date", date.today())
-    time_since_treatment = calculate_months(last_radiotherapy, followup_date)
-    st.write(f"Time since treatment: {time_since_treatment} months")
+regional_recurrence = st.selectbox("Regional Recurrence", ["No", "Yes"])
+if regional_recurrence == "Yes":
+    regional_recurrence_date = st.date_input("Date of Regional Recurrence")
+    time_to_regional_recurrence = calculate_months(last_radiotherapy_date, regional_recurrence_date)
+else:
+    regional_recurrence_date = None
+    time_to_regional_recurrence = None
 
-    radiodermatitis = st.selectbox("Radiodermatitis", ["I", "II", "III", "IV"])
-    telangiectasia = st.selectbox("Telangiectasia", ["Yes", "No"])
-    breast_pain = st.selectbox("Breast Pain", ["I", "II", "III"])
-    cosmetic_outcome = st.selectbox("Cosmetic Outcome", ["Excellent", "Good", "Poor"])
-    breast_shrinkage = st.selectbox("Breast Shrinkage", ["Yes", "No"])
-    surgery_needed = st.selectbox("Surgery Needed for Cosmetic Issues", ["Yes", "No"])
+distant_recurrence = st.selectbox("Distant Recurrence", ["No", "Yes"])
+if distant_recurrence == "Yes":
+    distant_recurrence_date = st.date_input("Date of Distant Recurrence")
+    time_to_distant_recurrence = calculate_months(last_radiotherapy_date, distant_recurrence_date)
+else:
+    distant_recurrence_date = None
+    time_to_distant_recurrence = None
 
-    # Local Recurrence Handling
-    local_recurrence = st.selectbox("Local Recurrence", ["No", "Yes"])
-    if local_recurrence == "Yes":
-        local_recurrence_date = st.date_input("Date of Local Recurrence", min_value=last_radiotherapy)
-        time_to_local_recurrence = calculate_months(last_radiotherapy, local_recurrence_date)
+# Save Data Button
+if st.button("Save Data"):
+    # Check if patient already exists
+    if mrn in st.session_state["patient_data"]["MRN"].values:
+        patient_data = st.session_state["patient_data"][st.session_state["patient_data"]["MRN"] == mrn]
+        followup_count = patient_data.shape[0] + 1
+        suffix = f"#{followup_count}"
     else:
-        local_recurrence_date, time_to_local_recurrence = None, None
+        suffix = ""
 
-    # Regional Recurrence Handling
-    regional_recurrence = st.selectbox("Regional Recurrence", ["No", "Yes"])
-    if regional_recurrence == "Yes":
-        regional_recurrence_date = st.date_input("Date of Regional Recurrence", min_value=last_radiotherapy)
-        time_to_regional_recurrence = calculate_months(last_radiotherapy, regional_recurrence_date)
-    else:
-        regional_recurrence_date, time_to_regional_recurrence = None, None
-
-    # Distant Recurrence Handling
-    distant_recurrence = st.selectbox("Distant Recurrence", ["No", "Yes"])
-    if distant_recurrence == "Yes":
-        distant_recurrence_date = st.date_input("Date of Distant Recurrence", min_value=last_radiotherapy)
-        time_to_distant_recurrence = calculate_months(last_radiotherapy, distant_recurrence_date)
-    else:
-        distant_recurrence_date, time_to_distant_recurrence = None, None
-
-    submitted = st.form_submit_button("Submit")
-
-# Handle form submission
-if submitted:
-    # Create new data entry
     new_data = {
-        "MRN": mrn,
-        "Date_of_Birth": dob,
-        "Age": age,
-        "Date_of_Last_Radiotherapy": last_radiotherapy,
-        "Followup_Date": followup_date,
-        "Time_since_treatment": time_since_treatment,
-        "Radiodermatitis": radiodermatitis,
-        "Telangiectasia": telangiectasia,
-        "Breast_Pain": breast_pain,
-        "Cosmetic_Outcome": cosmetic_outcome,
-        "Breast_Shrinkage": breast_shrinkage,
-        "Surgery_Needed": surgery_needed,
-        "Local_Recurrence": local_recurrence,
-        "Date_of_Local_Recurrence": local_recurrence_date,
-        "Time_to_Local_Recurrence": time_to_local_recurrence,
-        "Regional_Recurrence": regional_recurrence,
-        "Date_of_Regional_Recurrence": regional_recurrence_date,
-        "Time_to_Regional_Recurrence": time_to_regional_recurrence,
-        "Distant_Recurrence": distant_recurrence,
-        "Date_of_Distant_Recurrence": distant_recurrence_date,
-        "Time_to_Distant_Recurrence": time_to_distant_recurrence
+        f"MRN{suffix}": mrn,
+        f"Date_of_Birth{suffix}": dob,
+        f"Age{suffix}": age,
+        f"Date_of_Last_Radiotherapy{suffix}": last_radiotherapy_date,
+        f"Followup_Date{suffix}": followup_date,
+        f"Time_since_treatment{suffix}": time_since_treatment,
+        f"Radiodermatitis{suffix}": radiodermatitis,
+        f"Telangiectasia{suffix}": telangiectasia,
+        f"Breast_Pain{suffix}": breast_pain,
+        f"Cosmetic_Outcome{suffix}": cosmetic_outcome,
+        f"Breast_Shrinkage{suffix}": breast_shrinkage,
+        f"Surgery_Needed{suffix}": surgery_needed,
+        f"Local_Recurrence{suffix}": local_recurrence,
+        f"Date_of_Local_Recurrence{suffix}": local_recurrence_date,
+        f"Time_to_Local_Recurrence{suffix}": time_to_local_recurrence,
+        f"Regional_Recurrence{suffix}": regional_recurrence,
+        f"Date_of_Regional_Recurrence{suffix}": regional_recurrence_date,
+        f"Time_to_Regional_Recurrence{suffix}": time_to_regional_recurrence,
+        f"Distant_Recurrence{suffix}": distant_recurrence,
+        f"Date_of_Distant_Recurrence{suffix}": distant_recurrence_date,
+        f"Time_to_Distant_Recurrence{suffix}": time_to_distant_recurrence,
     }
 
-    # Check if MRN exists in the data
-    if mrn in st.session_state["patient_data"]["MRN"].values:
-        # If it exists, append new follow-up data with a suffix
-        followup_number = st.session_state["patient_data"][st.session_state["patient_data"]["MRN"] == mrn].shape[0] + 1
-        new_data = {f"{key}#{followup_number}": value for key, value in new_data.items()}
+    # Append new data to the DataFrame
+    st.session_state["patient_data"] = pd.concat(
+        [st.session_state["patient_data"], pd.DataFrame([new_data])]
+    )
 
-    # Add the new data to the DataFrame
-    st.session_state["patient_data"] = pd.concat([st.session_state["patient_data"], pd.DataFrame([new_data])], ignore_index=True)
+    # Save to local Excel file
+    st.session_state["patient_data"].to_excel(LOCAL_EXCEL, index=False)
+    st.success("Data saved successfully!")
 
-    # Save the updated DataFrame to Excel
-    st.session_state["patient_data"].to_excel(EXCEL_FILE, index=False)
-    st.success("Patient data saved successfully!")
-
-# Display the current database
-st.subheader("Current Database")
-st.write(st.session_state["patient_data"])
-
-# Option to download the data as an Excel file
-if not st.session_state["patient_data"].empty:
-    @st.cache_data
-    def convert_df_to_excel(df):
-        return df.to_excel(index=False, engine='xlsxwriter')
-
-    excel_data = convert_df_to_excel(st.session_state["patient_data"])
-    st.download_button("Download Excel", data=excel_data, file_name="patient_data.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+# Display Data
+st.write("Current Patient Data:")
+st.dataframe(st.session_state["patient_data"])
