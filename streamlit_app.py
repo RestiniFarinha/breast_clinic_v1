@@ -1,143 +1,142 @@
-pip install gspread oauth2client gdown
-pip show gspread
-
 import streamlit as st
-import pandas as pd
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from datetime import datetime
 
-# Google Sheets configuration
-SHEET_ID = "1y-ZVShqCHRMKjdf8_MWChGmGy1iEUaGm"  # Extracted from your link
-SHEET_NAME = "Sheet1"  # Ensure this matches the actual name of your sheet
-
-# Setup Google Sheets API access
-def connect_to_gsheet():
-    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-    creds = ServiceAccountCredentials.from_json_keyfile_name("credentials.json", scope)
-    client = gspread.authorize(creds)
-    return client.open_by_key(SHEET_ID).worksheet(SHEET_NAME)
-
-# Load patient data from Google Sheets
-def load_data():
-    try:
-        worksheet = connect_to_gsheet()
-        data = pd.DataFrame(worksheet.get_all_records())
-        return data
-    except Exception as e:
-        st.error(f"Error loading data: {e}")
-        return pd.DataFrame()
-
-# Save patient data to Google Sheets
-def save_data(data):
-    try:
-        worksheet = connect_to_gsheet()
-        worksheet.clear()  # Clear existing data
-        worksheet.update([data.columns.values.tolist()] + data.values.tolist())
-        st.success("Data saved successfully!")
-    except Exception as e:
-        st.error(f"Error saving data: {e}")
-
-# Initialize session state
-if "patient_data" not in st.session_state:
-    st.session_state["patient_data"] = load_data()
-
-# Function to calculate months between two dates
+# Helper function to calculate time in months
 def calculate_months(start_date, end_date):
     return (end_date.year - start_date.year) * 12 + (end_date.month - start_date.month)
 
-st.title("Breast Clinic Patient Management")
+# Google Sheets connection setup
+def connect_to_gsheets(json_keyfile):
+    scope = ["https://spreadsheets.google.com/feeds", 
+             "https://www.googleapis.com/auth/drive"]
+    creds = ServiceAccountCredentials.from_json_keyfile_name(json_keyfile, scope)
+    client = gspread.authorize(creds)
+    return client
 
-# Input Section
-mrn = st.text_input("MRN (Medical Record Number)")
-dob = st.date_input("Date of Birth", value=datetime(1980, 1, 1))
-followup_date = st.date_input("Date of Follow-up", value=datetime.today())
+# Provide the path to your JSON keyfile (ensure it's placed in the right directory)
+json_keyfile = ".streamlit/breast-clinic-439001-eaffe3c758c0.json"
+client = connect_to_gsheets(json_keyfile)
+worksheet = client.open("Breast_clinic_v2").sheet1
 
-# Calculate Age Button
-if st.button("Calculate Age"):
-    age = (followup_date - dob).days // 365
-    st.write(f"Patient's Age: {age} years")
-else:
-    age = None
+# Streamlit app layout
+st.title("Patient Information Database")
 
-last_radiotherapy_date = st.date_input("Date of Last Radiotherapy", value=datetime(2020, 1, 1))
+# Session state for tracking recurrence dates
+if 'local_recurrence_date' not in st.session_state:
+    st.session_state.local_recurrence_date = None
+if 'regional_recurrence_date' not in st.session_state:
+    st.session_state.regional_recurrence_date = None
+if 'distant_recurrence_date' not in st.session_state:
+    st.session_state.distant_recurrence_date = None
 
-# Calculate Time Since Treatment Button
-if st.button("Calculate Time Since Radiotherapy"):
-    time_since_treatment = calculate_months(last_radiotherapy_date, followup_date)
-    st.write(f"Time Since Treatment: {time_since_treatment} months")
-else:
-    time_since_treatment = None
+# User input form
+with st.form("patient_form", clear_on_submit=False):
+    # Input fields
+    date_of_birth = st.date_input("Date of Birth", min_value=datetime(1900, 1, 1), max_value=datetime.today())
+    mrn = st.text_input("MRN (Medical Record Number)")
+    last_radiotherapy_date = st.date_input("Date of Last Radiotherapy")
+    follow_up_date = st.date_input("Date of Follow-up", value=datetime.today())
 
-radiodermatitis = st.selectbox("Radiodermatitis", ["None", "I", "II", "III", "IV"])
-telangiectasia = st.selectbox("Telangiectasia", ["No", "Yes"])
-breast_pain = st.selectbox("Breast Pain", ["None", "I", "II", "III"])
-cosmetic_outcome = st.selectbox("Cosmetic Outcome", ["Excellent", "Good", "Poor"])
-breast_shrinkage = st.selectbox("Breast Shrinkage", ["No", "Yes"])
-surgery_needed = st.selectbox("Surgery Needed for Cosmetic Side Effects", ["No", "Yes"])
+    # Optional fields
+    st.write("**Side Effects**")
+    radiodermatitis = st.selectbox("Radiodermatitis", ["None", "I", "II", "III", "IV"])
+    telangiectasia = st.radio("Telangiectasia", ["No", "Yes"])
+    breast_pain = st.selectbox("Breast Pain", ["None", "I", "II", "III"])
+    cosmetic_outcome = st.selectbox("Cosmetic Outcome", ["Excellent", "Good", "Poor"])
+    breast_shrinkage = st.radio("Breast Shrinkage", ["No", "Yes"])
+    surgery_for_cosmetics = st.radio("Surgery for Cosmetic Correction", ["No", "Yes"])
 
-# Recurrence Fields
-local_recurrence = st.selectbox("Local Recurrence", ["No", "Yes"])
-if local_recurrence == "Yes":
-    local_recurrence_date = st.date_input("Date of Local Recurrence")
-    time_to_local_recurrence = calculate_months(last_radiotherapy_date, local_recurrence_date)
-else:
-    local_recurrence_date = None
-    time_to_local_recurrence = None
+    # Recurrence information
+    st.write("**Recurrence Details**")
 
-regional_recurrence = st.selectbox("Regional Recurrence", ["No", "Yes"])
-if regional_recurrence == "Yes":
-    regional_recurrence_date = st.date_input("Date of Regional Recurrence")
-    time_to_regional_recurrence = calculate_months(last_radiotherapy_date, regional_recurrence_date)
-else:
-    regional_recurrence_date = None
-    time_to_regional_recurrence = None
+    local_recurrence = st.radio("Local Recurrence", ["No", "Yes"])
+    if local_recurrence == "Yes":
+        st.session_state.local_recurrence_date = st.date_input("Date of Local Recurrence", max_value=datetime.today())
+    
+    regional_recurrence = st.radio("Regional Recurrence", ["No", "Yes"])
+    if regional_recurrence == "Yes":
+        st.session_state.regional_recurrence_date = st.date_input("Date of Regional Recurrence", max_value=datetime.today())
+    
+    distant_recurrence = st.radio("Distant Recurrence", ["No", "Yes"])
+    if distant_recurrence == "Yes":
+        st.session_state.distant_recurrence_date = st.date_input("Date of Distant Recurrence", max_value=datetime.today())
 
-distant_recurrence = st.selectbox("Distant Recurrence", ["No", "Yes"])
-if distant_recurrence == "Yes":
-    distant_recurrence_date = st.date_input("Date of Distant Recurrence")
-    time_to_distant_recurrence = calculate_months(last_radiotherapy_date, distant_recurrence_date)
-else:
-    distant_recurrence_date = None
-    time_to_distant_recurrence = None
+    # Button to calculate values (age, time intervals, etc.)
+    calculate_button = st.form_submit_button("Calculate")
 
-# Save Data Button
-if st.button("Save Data"):
-    # Check if patient already exists
-    if mrn in st.session_state["patient_data"]["MRN"].values:
-        followup_count = st.session_state["patient_data"][st.session_state["patient_data"]["MRN"] == mrn].shape[0] + 1
-        suffix = f"#{followup_count}"
+    if calculate_button:
+        # Calculate age
+        age = datetime.today().year - date_of_birth.year - (
+            (datetime.today().month, datetime.today().day) < (date_of_birth.month, date_of_birth.day)
+        )
+        # Calculate time since radiotherapy
+        time_since_treatment = calculate_months(last_radiotherapy_date, follow_up_date)
+
+        # Calculate recurrence times (if applicable)
+        time_to_local_recurrence = (
+            calculate_months(last_radiotherapy_date, st.session_state.local_recurrence_date)
+            if local_recurrence == "Yes" else None
+        )
+        time_to_regional_recurrence = (
+            calculate_months(last_radiotherapy_date, st.session_state.regional_recurrence_date)
+            if regional_recurrence == "Yes" else None
+        )
+        time_to_distant_recurrence = (
+            calculate_months(last_radiotherapy_date, st.session_state.distant_recurrence_date)
+            if distant_recurrence == "Yes" else None
+        )
+
+        # Store calculated values in session state for later use
+        st.session_state['age'] = age
+        st.session_state['time_since_treatment'] = time_since_treatment
+        st.session_state['time_to_local_recurrence'] = time_to_local_recurrence
+        st.session_state['time_to_regional_recurrence'] = time_to_regional_recurrence
+        st.session_state['time_to_distant_recurrence'] = time_to_distant_recurrence
+
+        # Display calculated values for preview
+        st.write(f"**Calculated Age**: {age} years")
+        st.write(f"**Time since last radiotherapy**: {time_since_treatment} months")
+        if time_to_local_recurrence is not None:
+            st.write(f"**Time to local recurrence**: {time_to_local_recurrence} months")
+        if time_to_regional_recurrence is not None:
+            st.write(f"**Time to regional recurrence**: {time_to_regional_recurrence} months")
+        if time_to_distant_recurrence is not None:
+            st.write(f"**Time to distant recurrence**: {time_to_distant_recurrence} months")
+
+# Save button (outside the form) to ensure the user reviews and inputs recurrence dates before saving
+if st.button("Save Information"):
+    # Retrieve values from session state
+    age = st.session_state.get('age', None)
+    time_since_treatment = st.session_state.get('time_since_treatment', None)
+    time_to_local_recurrence = st.session_state.get('time_to_local_recurrence', None)
+    time_to_regional_recurrence = st.session_state.get('time_to_regional_recurrence', None)
+    time_to_distant_recurrence = st.session_state.get('time_to_distant_recurrence', None)
+
+    if age is None or time_since_treatment is None:
+        st.error("Please calculate the age and treatment times before saving.")
     else:
-        suffix = ""
+        # Collect data to be saved
+        data = {
+            "MRN": mrn,
+            "Age": age,
+            "Time_since_treatment": time_since_treatment,
+            "Radiodermatitis": radiodermatitis,
+            "Telangiectasia": telangiectasia,
+            "Breast_pain": breast_pain,
+            "Cosmetic_outcome": cosmetic_outcome,
+            "Breast_shrinkage": breast_shrinkage,
+            "Surgery_for_cosmetics": surgery_for_cosmetics,
+            "Local_recurrence": local_recurrence,
+            "Time_to_local_recurrence": time_to_local_recurrence,
+            "Regional_recurrence": regional_recurrence,
+            "Time_to_regional_recurrence": time_to_regional_recurrence,
+            "Distant_recurrence": distant_recurrence,
+            "Time_to_distant_recurrence": time_to_distant_recurrence,
+        }
 
-    new_data = {
-        f"MRN{suffix}": mrn,
-        f"Date_of_Birth{suffix}": dob,
-        f"Age{suffix}": age,
-        f"Date_of_Last_Radiotherapy{suffix}": last_radiotherapy_date,
-        f"Followup_Date{suffix}": followup_date,
-        f"Time_since_treatment{suffix}": time_since_treatment,
-        f"Radiodermatitis{suffix}": radiodermatitis,
-        f"Telangiectasia{suffix}": telangiectasia,
-        f"Breast_Pain{suffix}": breast_pain,
-        f"Cosmetic_Outcome{suffix}": cosmetic_outcome,
-        f"Breast_Shrinkage{suffix}": breast_shrinkage,
-        f"Surgery_Needed{suffix}": surgery_needed,
-        f"Local_Recurrence{suffix}": local_recurrence,
-        f"Date_of_Local_Recurrence{suffix}": local_recurrence_date,
-        f"Time_to_Local_Recurrence{suffix}": time_to_local_recurrence,
-        f"Regional_Recurrence{suffix}": regional_recurrence,
-        f"Date_of_Regional_Recurrence{suffix}": regional_recurrence_date,
-        f"Time_to_Regional_Recurrence{suffix}": time_to_regional_recurrence,
-        f"Distant_Recurrence{suffix}": distant_recurrence,
-        f"Date_of_Distant_Recurrence{suffix}": distant_recurrence_date,
-        f"Time_to_Distant_Recurrence{suffix}": time_to_distant_recurrence,
-    }
+        # Append to Google Sheets
+        worksheet.append_row(list(data.values()))
 
-    # Append new data
-    st.session_state["patient_data"] = pd.concat(
-        [st.session_state["patient_data"], pd.DataFrame([new_data])]
-    )
-
-    # Save to Google Sheets
-    save_data(st.session_state["patient_data"])
+        st.success("Patient data has been successfully saved!")
