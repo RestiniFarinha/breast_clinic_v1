@@ -1,0 +1,18 @@
+version: "3.8"
+
+services:
+  python:
+    image: "docker.io/python:3.9-slim"
+    entrypoint: /app/entrypoint.sh
+    init: true
+    environment:
+      STREAMLIT_BROWSER_GATHER_USAGE_STATS: false
+      STREAMLIT_SERVER_SSL_CERT_FILE: /cert/server.crt
+      STREAMLIT_SERVER_SSL_KEY_FILE: /cert/server.key
+      STREAMLIT_SERVER_ENABLE_CORS: false
+    volumes:
+      - ./:/app/
+      - ./../certs/server.crt:/cert/server.crt
+      - ./../certs/server.key:/cert/server.key
+    ports:
+      - 8501:8501

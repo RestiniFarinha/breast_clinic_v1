@@ -17,3 +17,8 @@ A simple Streamlit app template for you to modify!
    ```
    $ streamlit run streamlit_app.py
    ```
+
+### Installation instructions (linux, as regular user):
+* put secrets file as breast-clinic-439001-eaffe3c758c0.json in .streamlit/
+* put server.crt and server.key in ../certs/
+* podman-compose up -d
