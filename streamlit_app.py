@@ -78,7 +78,7 @@ with st.form("patient_form", clear_on_submit=False):
     st.subheader("Patient Details")
 
     date_of_birth = st.date_input("Date of Birth",
-        value=datetime.strptime(safe_get(patient_data, "Date_of_Birth", "1900-01-01"), "%Y-%m-%d").date() if patient_data else date.today()
+        value=datetime.strptime(safe_get(patient_data, "Date_of_Birth", "1900-01-01"), "%Y-%m-%d").date() if patient_data else date.today(), min_value=datetime(1900, 1, 1).date(), max_value=datetime.today().date()
     )
 
     mrn = st.text_input("MRN (Medical Record Number)", value=mrn)
