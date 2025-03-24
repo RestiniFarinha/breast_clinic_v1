@@ -17,16 +17,16 @@ def load_data():
     else:
         return pd.DataFrame(columns=[
             "MRN", "Date_of_Birth", "Age", "Date_of_Last_Radiotherapy", "Follow_up_date", "Follow_up_time",
-            "Histology", "Grade", "ER", "PR", "HER2", "Clinical Stage", "Surgical Stage", "Margins", "LVI", "Surgery", "Surgery_date",
-            "Neoadjuvant_hormonal_therapy", "Neoadjuvant_chemotherapy", "Neoadjuvant_chemotherapy_type",
-            "Adjuvant_chemotherapy", "Adjuvant_chemotherapy_type",
-            "Laterality", "Volume",
+            "Histology", "Grade", "ER", "PR", "HER2", "Clinical Stage", "Pathological Stage", "Margins", "LVI", "Surgery", "Surgery_date",
+            "Neoadjuvant_hormonal_therapy", "Neoadjuvant_systemic_treatment", "Neoadjuvant_systemic_treatment_type",
+            "Adjuvant_systemic_treatment", "Adjuvant_systemic_treatment_type",
+            "Laterality", "Volume - Left Breast", "Volume - Right Breast", "Fractionation",
             "Radiodermatitis", "Telangiectasia", "Breast_pain", "Cosmetic_outcome", "Breast_shrinkage", "Hyperpigmentation",
             "Lymphedema", "Surgery_for_cosmetics",
             "Breast_edema", "Breast_fibrosis", "Tumor_bed_fibrosis", "Tumor_bed_retraction", 
             "Pneumonitis", "Esophagitis", "Fatigue",
-            "Local_recurrence", "Time_to_local_recurrence", "Regional_recurrence", "Time_to_regional_recurrence",
-            "Distant_recurrence", "Time_to_distant_recurrence", "Cancer Related Death", "Death", "Time_to_death"
+            "Local_recurrence", "Local Recurrence Definition", "Time_to_local_recurrence", "Regional_recurrence", "Regional Recurrence Definition", "Time_to_regional_recurrence",
+            "Distant_recurrence", "Distant Recurrence Definition", "Time_to_distant_recurrence", "Cancer Related Death", "Death", "Time_to_death"
         ])
 
 # Function to safely retrieve data, handling NaN values
@@ -63,9 +63,15 @@ def save_data(data):
     # Save the updated DataFrame
     df.to_excel(excel_file, index=False)
 
-
 # Streamlit app layout
 st.title("Patient Information Database - Breast 30Gy SIB Clinic")
+st.write("To get started, please follow the instructions below:")
+st.write("1. Enter the MRN (Medical Record Number) of the patient and press Enter.")
+st.write("If the patient was already included in the database, the existing data will be loaded.")
+st.write("2. Fill in the required fields and click the 'Calculate' button to calculate the patient's age and treatment times.")
+st.write("3. After the calculations are done, click the 'Save Information' button to store the patient data in the database.")
+st.write("You must ALWAYS press calculate before saving the information.")
+st.write("4. The saved data will be appended to the existing database for future reference.")
 
 # Input for MRN
 mrn = st.text_input("Enter MRN (Medical Record Number) and press Enter", key="mrn")
@@ -91,11 +97,11 @@ with st.form("patient_form", clear_on_submit=False):
         value=datetime.strptime(safe_get(patient_data, "Follow_up_date", "1900-01-01"), "%Y-%m-%d").date() if patient_data else date.today()
     )
 
-    Histology = st.multiselect("Histology", ["IDC", "ILC", "DCIS", "LCIS", "Others"],
+    Histology = st.multiselect("Histology", ["IDC", "ILC", "DCIS", "LCIS", "Other"],
        default=safe_get_list(patient_data, "Histology") if patient_data else []
     )
 
-    ER = st.radio("ER", ["Negative", "Positive"],
+    ER = st.radio("ER", ["Negative", "Positive"], #unkown
         index=["Negative", "Positive"].index(safe_get(patient_data, "ER", "Negative")) if patient_data else 0
     )
 
@@ -103,8 +109,8 @@ with st.form("patient_form", clear_on_submit=False):
         index=["Negative", "Positive"].index(safe_get(patient_data, "PR", "Negative")) if patient_data else 0
     )
 
-    HER2 = st.radio("HER 2", ["Negative", "Positive"],
-        index=["Negative", "Positive"].index(safe_get(patient_data, "HER2", "Negative")) if patient_data else 0
+    HER2 = st.multiselect("HER 2",["Negative", "FISH Positive", "1+", "2+", "3+", "FISH Negative", "Other"],
+        default=safe_get_list(patient_data, "HER2") if patient_data else []
     )
 
 
@@ -112,23 +118,23 @@ with st.form("patient_form", clear_on_submit=False):
         index=["I", "II", "III"].index(safe_get(patient_data, "Grade", "I")) if patient_data else 0
     )
 
-    Clinical_Stage = st.multiselect("Clinical Stage", ["cT1", "cT2", "cT3", "cT4", "cN0", "cN1", "cN2", "cN3", "M0", "M1"],
-        default=safe_get_list(patient_data, "Clinical Stage") if patient_data else []
+    Clinical_Stage = st.multiselect("Clinical Stage", ["cTx", "cTis", "cT1a", "cT1b", "cT1c", "cT2", "cT3", "cT4a","cT4b", "cT4c", "cT4d", "cN0", "cN1a", "cN1b", "cN1c", "cN2a", "cN2b", "cN3a", "cN3b", "cN3c", "M0", "M1"],
+        default=safe_get_list(patient_data, "Clinical Stage") if patient_data else [] #Check if we can use selectbox instead of multiselect
     )
 
-    Surgical_Stage = st.multiselect("Surgical Stage", ["pT1", "pT2", "pT3", "pT4", "pN0", "pN1", "pN2", "pN3", "M0", "M1"],
-        default=safe_get_list(patient_data, "Surgical Stage") if patient_data else []
+    Pathological_Stage = st.multiselect("Pathological Stage", ["pTx", "pTis", "pT1a", "pT1b", "pT1c", "pT2", "pT3", "pT4a","pT4b", "pT4c", "pT4d","pN0", "pN1a", "pN1b", "pN1c", "pN2a", "pN2b", "pN3a", "pN3b", "pN3c", "M0", "M1"],
+        default=safe_get_list(patient_data, "Pathological Stage") if patient_data else [] 
     )
 
-    Margins = st.multiselect("Margins", ["Negative", "Positive", "<1mm", "<2mm", "Others"],
+    Margins = st.multiselect("Margins", ["Negative", "Positive", "<1mm", "1mm", "2mm", ">2mm", "Other"],
         default=safe_get_list(patient_data, "Margins") if patient_data else []
     )
 
-    LVI = st.radio("LVI", ["Negative", "Positive"],
+    LVI = st.radio("LVI", ["Negative", "Positive", "Unknown"],
         index=["Negative", "Positive"].index(safe_get(patient_data, "PR", "Negative")) if patient_data else 0
     )
 
-    Surgery = st.multiselect("Surgery", ["Mastectomy", "Partial Mastectomy", "Lumpectomy", "SLNB", "ALND", "Others"],
+    Surgery = st.multiselect("Surgery", ["Total Mastectomy", "Partial mastectomy", "Skin sparing mastectomy", "Nipple sparing mastectomy", "Lumpectomy", "SLNB", "ALND", "Targeted axillary dissection", "Other"],
         default=safe_get_list(patient_data, "Surgery") if patient_data else []
     )
 
@@ -136,34 +142,53 @@ with st.form("patient_form", clear_on_submit=False):
         value=datetime.strptime(safe_get(patient_data, "Surgery_date", "1900-01-01"), "%Y-%m-%d").date() if patient_data else date.today()
     )
 
-    # Systemic Treatment
+    # Systemic Treatment Change for Systemic treatment
     st.subheader("Systemic Treatment")
     Neoadjuvant_hormonal_therapy = st.radio("Neoadjuvant Hormonal Therapy", ["No", "Yes"],
         index=["No", "Yes"].index(safe_get(patient_data, "Neoadjuvant_hormonal_therapy", "No")) if patient_data else 0
     )
 
-    Neoadjuvant_chemotherapy_type = st.multiselect("Neoadjuvant Chemotherapy", 
-        ["None", "Chemotherapy", "CDK4/6 alone", "CDK4/6 + Endocrine therapy", "Immunotherapy", "Chemo+Immuno", "ADC", "Targeted Therapy", "PARP inhibitors", "Others"],
-        default=safe_get_list(patient_data, "Neoadjuvant_chemotherapy_type") if patient_data else []
+    Neoadjuvant_systemic_treatment_type = st.multiselect("Neoadjuvant Systemic Treatment type", 
+        ["None", "Chemotherapy", "CDK4/6 inhibitors", "Endocrine therapy", "Immunotherapy", "ADC", "Targeted Therapy", "PARP inhibitors", "Radioligand", "Other"],
+        default=safe_get_list(patient_data, "Neoadjuvant_systemic_treatment_type") if patient_data else []
     )
 
-    Adjuvant_chemotherapy_type = st.multiselect("Adjuvant Chemotherapy", 
-        ["None", "Chemotherapy", "CDK4/6 alone", "CDK4/6 + Endocrine therapy", "Immunotherapy", "Chemo+Immuno", "ADC", "Targeted Therapy", "PARP inhibitors", "Others"],
-        default=safe_get_list(patient_data, "Adjuvant_chemotherapy_type") if patient_data else []
+    Adjuvant_systemic_treatment_type = st.multiselect("Adjuvant Systemic Treatment type", 
+        ["None", "Chemotherapy", "CDK4/6 inhibitors", "Endocrine therapy", "Immunotherapy", "ADC", "Targeted Therapy", "PARP inhibitors", "Radioligand", "Other"],
+        default=safe_get_list(patient_data, "Adjuvant_systemic_treatment_type") if patient_data else []
     )
 
-    # Treatment Details
+    # Treatment Details - Separate Section according to laterallity and volume (volumne / boost - dosimetry)
     st.subheader("Treatment Details")
     Laterallity = st.selectbox("Laterality", ["Left", "Right", "Bilateral"],
         index=["Left", "Right", "Bilateral"].index(safe_get(patient_data, "Laterality", "Left")) if patient_data else 0
     )
-    Volume = st.selectbox("Volume", ["Whole Breast", "Partial Breast", "Locorregional Breast", "Chestwall", "Locorregional Chestwall"],
-        index=["Whole Breast", "Partial Breast", "Locorregional Breast", "Chestwall", "Locorregional Chestwall"].index(safe_get(patient_data, "Volume", "Whole Breast")) if patient_data else 0
+    st.warning(" If bilateral please fill in the details for both breasts separately.")
+    Volume_left = st.selectbox(
+        "Volume - Left Breast",
+        ["Whole Breast", "Partial Breast", "Locorregional Breast", "Chest wall", "Locorregional chest wall","Not treated"],
+        index=["Whole Breast", "Partial Breast", "Locorregional Breast", "Chest wall", "Locorregional chest wall"].index(
+            safe_get(patient_data, "Volume_left", "Whole Breast")) if patient_data else 0
+    )
+    Volume_right = st.selectbox(
+        "Volume - Right Breast",
+        ["Whole Breast", "Partial Breast", "Locorregional Breast", "Chest wall", "Locorregional chest wall","Not treated"],
+        index=["Whole Breast", "Partial Breast", "Locorregional Breast", "Chest wall", "Locorregional chest wall"].index(
+            safe_get(patient_data, "Volume_right", "Whole Breast")) if patient_data else 0
     )
 
-    # Side effects - Cosmesis
+    Fractionation = st.multiselect("Fractionation", 
+        ["26Gy", "30Gy SIB", "27Gy SIB", "28Gy SIB", "31Gy SIB", "40Gy", "10Gy sequential boost", "5.2Gy sequential boost", "27.5Gy/28.5Gy weekly", "Other"],
+        default=safe_get_list(patient_data, "Fractionation") if patient_data else []
+    )
+
+    #Include the Dose and Fractionation
+
+    st.markdown("<hr style='border:3px solid gray'>", unsafe_allow_html=True)
+
+    # Side effects - Cosmesis - EORTC or CTCAE and version
     st.subheader("Side Effects - Cosmesis")
-    radiodermatitis = st.radio("Radiodermatitis", ["None", "I", "II", "III", "IV"])
+    radiodermatitis = st.radio("Radiodermatitis (EORTC)", ["None", "I", "II", "III", "IV"])
     with st.expander("Radiodermatitis Classification"):
         st.write("Grade 0: No change")
         st.write("Grade I: Faint erythema or dry desquamation")
@@ -171,21 +196,21 @@ with st.form("patient_form", clear_on_submit=False):
         st.write("Grade III: Confluent, moist desquamation other than skin folds, pitting edema")
         st.write("Grade IV: Ulceration, hemorrhage, necrosis")
 
-    telangiectasia = st.radio("Telangiectasia", ["None", "I", "II", "III"])
+    telangiectasia = st.radio("Telangiectasia (EORTC)", ["None", "I", "II", "III"])
     with st.expander("Telangiectasia Classification"):
         st.write("Grade 0: No change")
         st.write("Grade I: Few scattered Telangiectasia")
         st.write("Grade II: Moderate Telangiectasia")
         st.write("Grade III: Many confluent Telangiectasia")
 
-    Hyperpigmentation = st.radio("Hyperpigmentation", ["None", "I", "II", "III"])
+    Hyperpigmentation = st.radio("Hyperpigmentation (CTCAE v5)", ["None", "I", "II"])
     with st.expander("Hyperpigmentation Classification"):
         st.write("Grade 0: No change")
         st.write("Grade I: <10 percent of treated skin area and without psychosocial impact")
         st.write("Grade II: >10 percent of treated skin area or with psychosocial impact")
  
 
-    Lymphedema = st.radio("Lymphedema", ["None", "I", "II", "III"])
+    Lymphedema = st.radio("Lymphedema (CTCAE v5)", ["None", "I", "II", "III"])
     with st.expander("Lymphedema Classification"):
         st.write("Grade 0: No change")
         st.write("Grade I: trace thickening")
@@ -197,28 +222,28 @@ with st.form("patient_form", clear_on_submit=False):
     st.subheader("Side Effects - Breast and Tumor Bed")
     breast_shrinkage = st.radio("Breast Shrinkage", ["No", "Yes"])
 
-    breast_pain = st.radio("Breast Pain", ["None", "I", "II", "III"])
+    breast_pain = st.radio("Breast Pain (EORTC)", ["None", "I", "II", "III"])
     with st.expander("Breast Pain Classification"):
         st.write("Grade 0: No pain")
         st.write("Grade I: Mild pain; non-narcotic analgesics indicated")
         st.write("Grade II: Moderate pain; narcotic analgesics indicated")
         st.write("Grade III: Severe pain; limiting self care ADL")   
 
-    Breast_edema = st.radio("Breast Edema", ["None", "I", "II", "III"])
+    Breast_edema = st.radio("Breast Edema (EORTC)", ["None", "I", "II", "III"])
     with st.expander("Breast Edema Classification"):
         st.write("Grade 0: No change")
         st.write("Grade I: Minimal edema")
         st.write("Grade II: Moderate edema with peau d'orange appearance")
         st.write("Grade III: Severe edema of breast and nipple")
 
-    Breast_fibrosis = st.radio("Breast Fibrosis", ["None", "I", "II", "III"])
+    Breast_fibrosis = st.radio("Breast Fibrosis (EORTC)", ["None", "I", "II", "III"])
     with st.expander("Breast Fibrosis Classification"):
         st.write("Grade 0: No change")  
         st.write("Grade I: Increased density in palpation")
         st.write("Grade II: Moderate impairment of function but not limiting self care ADL")
         st.write("Grade III: Severe fibrosis with interference with self care ADL and marked density")
 
-    Tumor_bed_fibrosis = st.radio("Tumor Bed Fibrosis", ["None", "I", "II", "III"])
+    Tumor_bed_fibrosis = st.radio("Tumor Bed Fibrosis (EORTC)", ["None", "I", "II", "III"])
     with st.expander("Tumor Bed Fibrosis Classification"):
         st.write("Grade 0: No change")  
         st.write("Grade I: Increased density in palpation")
@@ -231,8 +256,8 @@ with st.form("patient_form", clear_on_submit=False):
     cosmetic_outcome = st.radio("Cosmetic Outcome", ["Excellent", "Good", "Fair", "Poor"])
 
     # Side effects - Others
-    st.subheader("Side Effects - Others")
-    Pneumonitis = st.radio("Pneumonitis", ["None", "I", "II", "III", "IV", "V"])
+    st.subheader("Side Effects - Other")
+    Pneumonitis = st.radio("Pneumonitis (EORTC)", ["None", "I", "II", "III", "IV", "V"])
     with st.expander("Pneumonitis Classification"):
         st.write("Grade 0: No change")
         st.write("Grade I: Asymptomatic; clinical or diagnostic observations only; intervention not indicated")
@@ -241,7 +266,7 @@ with st.form("patient_form", clear_on_submit=False):
         st.write("Grade IV: Life-threatening respiratory compromise; urgent intervention indicated")
         st.write("Grade V: Death")
 
-    Esophagitis = st.radio("Esophagitis", ["None", "I", "II", "III", "IV", "V"])
+    Esophagitis = st.radio("Esophagitis (CTCAE v5)", ["None", "I", "II", "III", "IV", "V"])
     with st.expander("Esophagitis Classification"):
         st.write("Grade 0: No change")
         st.write("Grade I: Asymptomatic; clinical or diagnostic observations only; intervention not indicated")
@@ -250,7 +275,7 @@ with st.form("patient_form", clear_on_submit=False):
         st.write("Grade IV: Life-threatening consequences; urgent operative intervention indicated")
         st.write("Grade V: Death")
 
-    Fatigue = st.radio("Fatigue", ["None", "I", "II", "III"])
+    Fatigue = st.radio("Fatigue (EORTC)", ["None", "I", "II", "III"])
     with st.expander("Fatigue Classification"):
         st.write("Grade 0: No fatigue")
         st.write("Grade I: Mild fatigue; no change in activity")
@@ -266,14 +291,17 @@ with st.form("patient_form", clear_on_submit=False):
 
     time_to_local_recurrence = None
     if local_recurrence == "Yes":
+        local_recurrence_definition = st.multiselect("Local Recurrence Definition", ["Tumor Bed Recurrence", "Another Quadrant", "Same Quadrant", "Chest wall"])
         time_to_local_recurrence = calculate_months(last_radiotherapy_date, st.date_input("Date of Local Recurrence"))
 
-    time_to_regional_recurrence = None
+    time_to_regional_recurrence = None 
     if regional_recurrence == "Yes":
+        regional_recurrence_definition = st.multiselect("Regional Recurrence Definition", ["Axillary", "Supraclavicular", "Internal mammary"])
         time_to_regional_recurrence = calculate_months(last_radiotherapy_date, st.date_input("Date of Regional Recurrence"))
 
-    time_to_distant_recurrence = None
+    time_to_distant_recurrence = None 
     if distant_recurrence == "Yes":
+        distant_recurrence_definition = st.multiselect("Distant Recurrence Definition", ["Bone", "Liver", "Lung", "Brain", "Other"])
         time_to_distant_recurrence = calculate_months(last_radiotherapy_date, st.date_input("Date of Distant Recurrence"))
 
     death_date = None
@@ -325,7 +353,7 @@ if st.button("Save Information"):
             "PR": PR,
             "HER2": HER2,
             "Clinical Stage": Clinical_Stage,
-            "Surgical Stage": Surgical_Stage,
+            "Pathological Stage": Pathological_Stage,
             "Margins": Margins,
             "LVI": LVI,
             # Surgery
@@ -333,11 +361,13 @@ if st.button("Save Information"):
             "Surgery_date": Surgery_date.strftime("%Y-%m-%d"),
             # Systemic Treatment
             "Neoadjuvant_hormonal_therapy": Neoadjuvant_hormonal_therapy,
-            "Neoadjuvant_chemotherapy_type": Neoadjuvant_chemotherapy_type,
-            "Adjuvant_chemotherapy_type": Adjuvant_chemotherapy_type,
+            "Neoadjuvant_systemic_treatment_type": Neoadjuvant_systemic_treatment_type,
+            "Adjuvant_systemic_treatment_type": Adjuvant_systemic_treatment_type,
             # Treatment Details
             "Laterality": Laterallity,
-            "Volume": Volume,
+            "Volume - Left Breast": Volume_left,
+            "Volume - Right Breast": Volume_right,
+            "Fractionation": Fractionation,
             # Side Effects - Cosmesis
             "Radiodermatitis": radiodermatitis,
             "Telangiectasia": telangiectasia,
@@ -358,10 +388,13 @@ if st.button("Save Information"):
             "Fatigue": Fatigue,
             # Recurrence Details
             "Local_recurrence": local_recurrence,
+            "Local Recurrence Definition": local_recurrence_definition if local_recurrence == "Yes" else "N/A",
             "Time_to_local_recurrence": st.session_state.time_to_local_recurrence if local_recurrence == "Yes" else "N/A",
             "Regional_recurrence": regional_recurrence,
+            "Regional Recurrence Definition": regional_recurrence_definition if regional_recurrence == "Yes" else "N/A",
             "Time_to_regional_recurrence": st.session_state.time_to_regional_recurrence if regional_recurrence == "Yes" else "N/A",
             "Distant_recurrence": distant_recurrence,
+            "Distant Recurrence Definition": distant_recurrence_definition if distant_recurrence == "Yes" else "N/A",
             "Time_to_distant_recurrence": st.session_state.time_to_distant_recurrence if distant_recurrence == "Yes" else "N/A",
             "Cancer Related Death": Cancer_related_death if death == "Yes" else "N/A",
             "Death": death,
