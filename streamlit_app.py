@@ -134,7 +134,7 @@ with st.form("patient_form", clear_on_submit=False):
         index=["Negative", "Positive"].index(safe_get(patient_data, "PR", "Negative")) if patient_data else 0
     )
 
-    Surgery = st.multiselect("Surgery", ["Total Mastectomy", "Partial mastectomy", "Skin sparing mastectomy", "Nipple sparing mastectomy", "Lumpectomy", "SLNB", "ALND", "Targeted axillary dissection", "Other"],
+    Surgery = st.multiselect("Surgery", ["Total Mastectomy", "Partial Mastectomy", "Skin sparing mastectomy", "Nipple sparing mastectomy", "Lumpectomy", "SLNB", "ALND", "Targeted axillary dissection", "Other"],
         default=safe_get_list(patient_data, "Surgery") if patient_data else []
     )
 
